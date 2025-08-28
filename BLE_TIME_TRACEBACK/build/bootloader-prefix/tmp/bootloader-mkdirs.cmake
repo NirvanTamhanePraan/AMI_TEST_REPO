@@ -10,18 +10,18 @@ if(NOT EXISTS "C:/ESP_IDF/v5.4.1/esp-idf/components/bootloader/subproject")
   file(MAKE_DIRECTORY "C:/ESP_IDF/v5.4.1/esp-idf/components/bootloader/subproject")
 endif()
 file(MAKE_DIRECTORY
-  "C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/build/bootloader"
-  "C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/build/bootloader-prefix"
-  "C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/build/bootloader-prefix/tmp"
-  "C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/build/bootloader-prefix/src/bootloader-stamp"
-  "C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/build/bootloader-prefix/src"
-  "C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/build/bootloader-prefix/src/bootloader-stamp"
+  "C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/build/bootloader"
+  "C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/build/bootloader-prefix"
+  "C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/build/bootloader-prefix/tmp"
+  "C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/build/bootloader-prefix/src/bootloader-stamp"
+  "C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/build/bootloader-prefix/src"
+  "C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/build/bootloader-prefix/src/bootloader-stamp"
 )
 
 set(configSubDirs )
 foreach(subDir IN LISTS configSubDirs)
-    file(MAKE_DIRECTORY "C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/build/bootloader-prefix/src/bootloader-stamp/${subDir}")
+    file(MAKE_DIRECTORY "C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/build/bootloader-prefix/src/bootloader-stamp/${subDir}")
 endforeach()
 if(cfgdir)
-  file(MAKE_DIRECTORY "C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/build/bootloader-prefix/src/bootloader-stamp${cfgdir}") # cfgdir has leading slash
+  file(MAKE_DIRECTORY "C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/build/bootloader-prefix/src/bootloader-stamp${cfgdir}") # cfgdir has leading slash
 endif()

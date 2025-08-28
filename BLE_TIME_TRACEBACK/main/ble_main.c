@@ -32,7 +32,7 @@
 // Define BLE Profile, App ID, and Number of Handles
 #define PROFILE_NUM 1
 #define PROFILE_APP_ID 0
-#define NUM_HANDLE 15 // (1x Service, 3x Characteristics, 3x Descriptors, and their values)
+#define NUM_HANDLE 16 // (1x Service, 5x Characteristics, 5x Descriptors, and their values)
 
 // UUIDs for the Sevice and 3 Characteristics
 // GATTS_SERVICE_UUID: "00000001-0000-1000-8000-00805F9B34FB"
@@ -42,6 +42,8 @@
 // GATTS_CHAR3_UUID: "00002B03-0000-1000-8000-00805F9B34FB"
 // GATTS_DESCR_UUID: "00002902-0000-1000-8000-00805F9B34FB"
 // GATTS_CHAR4_UUID: "00002B04-0000-1000-8000-00805F9B34FB"
+// GATTS_DESCR_UUID: "00002902-0000-1000-8000-00805F9B34FB"
+// GATTS_CHAR5_UUID: "00002B05-0000-1000-8000-00805F9B34FB"
 // GATTS_DESCR_UUID: "00002902-0000-1000-8000-00805F9B34FB"
 
 // 128 bit UUIDs in little endian format for the Sevice and 3 Characteristics
@@ -63,6 +65,10 @@ static const uint8_t GATTS_CHAR3_UUID128[16] = {
 
 static const uint8_t GATTS_CHAR4_UUID128[16] = {
     0xFB, 0x34, 0x9B, 0x5F, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0x04, 0x2B, 0x00, 0x00
+};
+
+static const uint8_t GATTS_CHAR5_UUID128[16] = {
+    0xFB, 0x34, 0x9B, 0x5F, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0x05, 0x2B, 0x00, 0x00
 };
 
 // Macro for changing the name of the ble sensor device
@@ -92,6 +98,8 @@ struct gatts_profile_inst {
     esp_bt_uuid_t char3_uuid;
     uint16_t char4_handle;
     esp_bt_uuid_t char4_uuid;
+    uint16_t char5_handle;
+    esp_bt_uuid_t char5_uuid;
     esp_gatt_perm_t perm;
     esp_gatt_char_prop_t property;
     uint16_t descr_handle;
@@ -102,6 +110,8 @@ struct gatts_profile_inst {
     esp_bt_uuid_t descr3_uuid;
     uint16_t descr4_handle;
     esp_bt_uuid_t descr4_uuid;
+    uint16_t descr5_handle;
+    esp_bt_uuid_t descr5_uuid;
 };
 
 // Declaring the functions
@@ -118,6 +128,7 @@ static uint8_t char_value_read1[512] = {0};
 static uint8_t char_value_read2[1] = {0};
 static char char_value_read3[5] = {0};
 static uint8_t char_value_read4[1] = {0};
+static uint8_t char_value_read5[1] = {0};
 
 // Variable array to store the current batch value
 char batch[512];
@@ -140,6 +151,9 @@ int count_stored_packets = 0;
 // Variable to store the number of available data packets (Used for charachteristic 3)
 int available_packets = 0;
 
+// Flag to change the macros
+bool change_macro = false;
+
 // Flag to indicate the creation of the BLE Service
 static bool service_create_cmpl = false;
 
@@ -148,6 +162,7 @@ static bool notify_enabled_char1 = false;
 static bool notify_enabled_char2 = false;
 static bool notify_enabled_char3 = false;
 static bool notify_enabled_char4 = false;
+static bool notify_enabled_char5 = false;
 
 // Current MTU size for the active connection.
 static uint16_t local_mtu = 512;
@@ -188,6 +203,14 @@ static esp_attr_value_t char_value_send_read4 =
     .attr_max_len = 1,
     .attr_len = sizeof(char_value_read4),
     .attr_value = char_value_read4,
+};
+
+// Characteristic 5 Attribute value struct
+static esp_attr_value_t char_value_send_read5 =
+{
+    .attr_max_len = 1,
+    .attr_len = sizeof(char_value_read5),
+    .attr_value = char_value_read5,
 };
 
 // Advertisement data struct (Includes the Service UUID to be advertised)
@@ -562,7 +585,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                                             NULL);
 
                 if (ret) {
-                    // ESP_LOGE(GATTS_TAG, "add char 3 failed, error code = %x", ret);
+                    // ESP_LOGE(GATTS_TAG, "add char 4 failed, error code = %x", ret);
                 }
             }
 
@@ -580,6 +603,37 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
 
                 if (ret) {
                     // ESP_LOGE(GATTS_TAG, "add char 4 failed, error code = %x", ret);
+                }
+
+                gl_profile_tab[PROFILE_APP_ID].char5_uuid.len = ESP_UUID_LEN_128;
+                memcpy(gl_profile_tab[PROFILE_APP_ID].char5_uuid.uuid.uuid128, GATTS_CHAR5_UUID128, 16);
+
+                ret = esp_ble_gatts_add_char(gl_profile_tab[PROFILE_APP_ID].service_handle, 
+                                            &gl_profile_tab[PROFILE_APP_ID].char5_uuid,
+                                            ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
+                                            char_property,
+                                            &char_value_send_read5, 
+                                            NULL);
+
+                if (ret) {
+                    // ESP_LOGE(GATTS_TAG, "add char 5 failed, error code = %x", ret);
+                }
+            }
+
+            else if (gl_profile_tab[PROFILE_APP_ID].char5_handle == 0){
+                gl_profile_tab[PROFILE_APP_ID].char5_handle = param->add_char.attr_handle;
+                gl_profile_tab[PROFILE_APP_ID].descr5_uuid.len = ESP_UUID_LEN_16;
+                gl_profile_tab[PROFILE_APP_ID].descr5_uuid.uuid.uuid16 = ESP_GATT_UUID_CHAR_CLIENT_CONFIG;
+
+                // ESP_LOGI(GATTS_TAG, "char 5 handle %d", param->add_char.attr_handle);
+                ret = esp_ble_gatts_add_char_descr(gl_profile_tab[PROFILE_APP_ID].service_handle, 
+                                                &gl_profile_tab[PROFILE_APP_ID].descr5_uuid,
+                                                ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
+                                                NULL, 
+                                                NULL);
+
+                if (ret) {
+                    // ESP_LOGE(GATTS_TAG, "add char 5 failed, error code = %x", ret);
                 }
             }
 
@@ -600,6 +654,9 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
             }
             else if (gl_profile_tab[PROFILE_APP_ID].descr4_handle == 0){
                 gl_profile_tab[PROFILE_APP_ID].descr4_handle = param->add_char_descr.attr_handle;
+            }
+            else if (gl_profile_tab[PROFILE_APP_ID].descr5_handle == 0){
+                gl_profile_tab[PROFILE_APP_ID].descr5_handle = param->add_char_descr.attr_handle;
             }
 
             service_create_cmpl = true;
@@ -699,6 +756,13 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 // esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id, ESP_GATT_OK, &rsp);
             }
 
+            else if (param->read.handle == gl_profile_tab[PROFILE_APP_ID].char5_handle){
+                rsp.attr_value.handle = param->read.handle;
+                rsp.attr_value.len = sizeof(char_value_read5);
+                memcpy(rsp.attr_value.value, char_value_read5, sizeof(char_value_read5));
+                // esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id, ESP_GATT_OK, &rsp);
+            }
+
             esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id, ESP_GATT_OK, &rsp);
             break;
         case ESP_GATTS_WRITE_EVT:
@@ -762,6 +826,19 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                     // Notifications disabled for char2
                     // ESP_LOGI(GATTS_TAG, "Notification disable for char2");
                     notify_enabled_char4 = false;
+                }
+            }
+
+            else if (gl_profile_tab[PROFILE_APP_ID].descr5_handle == param->write.handle && param->write.len == 2) {
+                uint16_t descr_value = param->write.value[1]<<8 | param->write.value[0];
+                if (descr_value == 0x0001) {
+                    // Notification enabled for char2
+                    // ESP_LOGI(GATTS_TAG, "Notification enable for char2");
+                    notify_enabled_char5 = true;
+                } else if (descr_value == 0x0000) {
+                    // Notifications disabled for char2
+                    // ESP_LOGI(GATTS_TAG, "Notification disable for char2");
+                    notify_enabled_char5 = false;
                 }
             }
 
@@ -877,6 +954,23 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                                     false
                                 );
                             }
+                        }
+
+                        // #if BLE_DEBUG == 1
+                        // ESP_LOGE(GATTS_TAG, "Received value 2: %s", rec_value2);
+                        // #endif
+                    }
+                    else if (param->write.handle == gl_profile_tab[PROFILE_APP_ID].char5_handle) {
+                        // Second characteristic write
+                        // #if BLE_DEBUG == 1
+                        // ESP_LOGE(GATTS_TAG, "Second char write: %.*s", param->write.len, param->write.value);
+                        // #endif
+
+                        char *rec_value5 = (char *)param->write.value;
+
+                        if (strcmp(rec_value5, "0") == 0) {
+                            printf("rec_value5 = %s\n", rec_value5);
+                            change_macro = true;
                         }
 
                         // #if BLE_DEBUG == 1

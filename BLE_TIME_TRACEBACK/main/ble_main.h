@@ -12,6 +12,8 @@
 extern char *rec_value4;
 extern size_t rec_value4_length;
 
+extern bool change_macro;
+
 void bleInit(void);
 void ble_deinitialize(void);
 

@@ -1,2 +1,2 @@
-source C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/build/bootloader/gdbinit/symbols
-source C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/build/bootloader/gdbinit/connect
+source C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/build/bootloader/gdbinit/symbols
+source C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/build/bootloader/gdbinit/connect

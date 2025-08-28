@@ -1,4 +1,4 @@
-# Install script for directory: C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/main
+# Install script for directory: C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/main
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

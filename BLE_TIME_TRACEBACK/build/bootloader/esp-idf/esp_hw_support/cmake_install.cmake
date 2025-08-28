@@ -39,11 +39,11 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/build/bootloader/esp-idf/esp_hw_support/port/esp32c3/cmake_install.cmake")
+  include("C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/build/bootloader/esp-idf/esp_hw_support/port/esp32c3/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/build/bootloader/esp-idf/esp_hw_support/lowpower/cmake_install.cmake")
+  include("C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/build/bootloader/esp-idf/esp_hw_support/lowpower/cmake_install.cmake")
 endif()
 

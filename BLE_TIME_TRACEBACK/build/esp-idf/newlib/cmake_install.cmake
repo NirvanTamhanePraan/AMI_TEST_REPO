@@ -39,6 +39,6 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/build/esp-idf/newlib/port/cmake_install.cmake")
+  include("C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/build/esp-idf/newlib/port/cmake_install.cmake")
 endif()
 

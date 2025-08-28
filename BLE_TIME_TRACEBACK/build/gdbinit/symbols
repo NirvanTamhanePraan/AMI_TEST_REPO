@@ -18,8 +18,8 @@ end
 
 # Load bootloader symbols
 set confirm off
-    add-symbol-file C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/build/bootloader/bootloader.elf
+    add-symbol-file C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/build/bootloader/bootloader.elf
 set confirm on
 
 # Load application symbols
-file C:/Users/grand/ESP_PROJECTS_USER/BLE_TIME_TRACEBACK/build/BLE_TIME_TRACEBACK.elf
+file C:/Users/grand/Documents/GitHub/AMI_TEST_REPO/BLE_TIME_TRACEBACK/build/BLE_TIME_TRACEBACK.elf
