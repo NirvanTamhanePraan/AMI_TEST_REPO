@@ -1,5 +1,6 @@
 // Include custom Header files
 #include "dummy_sens.h"
+#include "dummy_leds.h"
 #include "read_battery_voltage.h"
 #include "nvs_store_data.h"
 #include "ble_main.h"
@@ -37,6 +38,8 @@ void app_main(void)
     // Set ESP LOG at highest priority
     esp_log_level_set("*", ESP_LOG_ERROR);
     ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    leds_app_start();
 
     batteryInit(); // Initialize and start the battery voltage (ADC) monitoring task
 

@@ -13,7 +13,10 @@
     "protocol_examples_common.h": "c",
     "stdio.h": "c",
     "nvs_store_data.h": "c",
-    "dummy_sens.h": "c"
+    "dummy_sens.h": "c",
+    "cstring": "c",
+    "typeinfo": "c",
+    "string.h": "c"
   },
   "idf.portWin": "COM3",
   "idf.flashType": "UART"

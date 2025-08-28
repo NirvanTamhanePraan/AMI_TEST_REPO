@@ -139,6 +139,9 @@ char unix_time[5];
 char *rec_value4 = NULL;
 size_t rec_value4_length = 0;
 
+char *rec_value5 = NULL;
+size_t rec_value5_length = 0;
+
 // Variable array to store the previous batch value
 static char last_sent_batch[512] = {0};
 
@@ -888,6 +891,9 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                         if (strcmp(rec_value3, "0") == 0) {
                             readCountPackets();
                         }
+                        else if (strcmp(rec_value3, "5") == 0) {
+                            spiffsClearAll();
+                        }
 
                         // #if BLE_DEBUG == 1
                         // ESP_LOGE(GATTS_TAG, "Received value 2: %s", rec_value2);
@@ -966,12 +972,39 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                         // ESP_LOGE(GATTS_TAG, "Second char write: %.*s", param->write.len, param->write.value);
                         // #endif
 
-                        char *rec_value5 = (char *)param->write.value;
+                        // char *rec_value5 = (char *)param->write.value;
 
-                        if (strcmp(rec_value5, "0") == 0) {
-                            printf("rec_value5 = %s\n", rec_value5);
-                            change_macro = true;
+                        // if (strcmp(rec_value5, "0") == 0) {
+                        //     printf("rec_value5 = %s\n", rec_value5);
+                        //     change_macro = true;
+                        // }
+
+                        // Free previous allocation if any
+                        free(rec_value5);
+                        
+                        // Use the actual length from the BLE parameter
+                        rec_value5_length = param->write.len;
+                        
+                        // Allocate memory for the data (+1 for optional null termination)
+                        rec_value5 = malloc(rec_value5_length + 1);
+                        if (rec_value5 == NULL) {
+                            // Handle allocation failure
+                            rec_value5_length = 0;
+                            return;
                         }
+                        
+                        // Copy the exact number of bytes received
+                        memcpy(rec_value5, param->write.value, rec_value5_length);
+                        
+                        // Optional: Add null terminator if you want to treat it as a string
+                        rec_value5[rec_value5_length] = '\0';
+                        
+                        // Debug: Print what was received
+                        printf("Received %zu bytes: ", rec_value5_length);
+                        for (size_t i = 0; i < rec_value5_length; i++) {
+                            printf("%02X ", (unsigned char)rec_value5[i]);
+                        }
+                        printf("\n");
 
                         // #if BLE_DEBUG == 1
                         // ESP_LOGE(GATTS_TAG, "Received value 2: %s", rec_value2);
@@ -1011,6 +1044,9 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
             notify_enabled_char1 = false;
             notify_enabled_char2 = false;
             notify_enabled_char3 = false;
+            notify_enabled_char4 = false;
+            notify_enabled_char5 = false;
+
             esp_ble_gap_start_advertising(&adv_params);
             // local_mtu = 512;
             break;
