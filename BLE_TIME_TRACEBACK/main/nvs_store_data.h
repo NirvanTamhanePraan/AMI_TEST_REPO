@@ -19,6 +19,7 @@ void spiffsCreateFile(void);
 void spiffsWrite(const char *data);
 void spiffsRead(void);
 int spiffsPeekBatch(int count, char *outBuffer, size_t bufSize);
+void spiffs_adjust_timestamps(uint32_t ble_timestamp, uint32_t current_seconds_counter);
 int spiffsCountPackets(void);
 int spiffsDeleteBatch(int count);
 void spiffsClearAll(void);

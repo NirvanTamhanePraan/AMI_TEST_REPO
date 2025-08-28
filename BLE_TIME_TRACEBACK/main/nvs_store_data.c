@@ -12,6 +12,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
 
 #include <sys/unistd.h>
 #include <sys/stat.h>
@@ -54,6 +56,9 @@ FILE* f;
 
 // Buffer to store one complete data packet (Not ll the data to be sent over BLE as 2 packets in one transmit)
 static char sensor_buffer[210];
+
+// Flag to indicate if timestamp adjustment is in progress
+static bool timestamp_adjustment_in_progress = false;
 
 // Initialize SPIFFS, check the partition size and check how much storage is used
 void spiffsInit(void){
@@ -124,24 +129,6 @@ void spiffsCreateFile(void){
 // Write and Append to the .txt file in the SPIFFS
 void spiffsWrite(const char *data)
 {
-    // // Open file in append mode so we add data instead of overwriting
-    // f = fopen("/spiffs/hello.txt", "a");
-
-    // fseek(f, 0, SEEK_END);
-    // long size = ftell(f);
-    // if (size > 0) {
-    //     fprintf(f, ", ");
-    // }
-
-    // if (f == NULL) {
-    //     printf("Failed to open file for appending\n");
-    //     return;
-    // }
-    // fprintf(f, "%s\n", data);  // Add newline after each entry
-    // fclose(f);
-
-    // printf("Data appended: %s\n", data);
-    
     // Open file in append mode so we add data instead of overwriting
     f = fopen("/spiffs/hello.txt", "a");
     if (f == NULL) {
@@ -162,7 +149,7 @@ void spiffsRead(void)
         return;
     }
 
-    char line[128];
+    char line[512];
     printf("File contents:\n");
     while (fgets(line, sizeof(line), f)) {
         // Strip newline for clean printing
@@ -172,36 +159,6 @@ void spiffsRead(void)
     }
     fclose(f);
 }
-
-// int spiffsPeekBatch(int count, char *outBuffer, size_t bufSize) {
-//     FILE *f = fopen("/spiffs/hello.txt", "r");
-//     if (!f) {
-//         printf("Failed to open file for reading\n");
-//         return 0;
-//     }
-
-//     char line[512];
-//     int readCount = 0;
-//     int first = 1;
-//     outBuffer[0] = '\0';
-
-//     while (fgets(line, sizeof(line), f) && readCount < count) {
-//         // Strip newline
-//         char *pos;
-//         if ((pos = strchr(line, '\n'))) *pos = '\0';
-//         if ((pos = strchr(line, '\r'))) *pos = '\0';
-
-//         if (strlen(line) == 0) continue; // skip empty lines
-
-//         if (!first) strncat(outBuffer, ", ", bufSize - strlen(outBuffer) - 1);
-//         strncat(outBuffer, line, bufSize - strlen(outBuffer) - 1);
-//         first = 0;
-//         readCount++;
-//     }
-//     fclose(f);
-
-//     return readCount; // number of entries peeked
-// }
 
 // Peek 2 data packets from the .txt file from the SPIFFS and put them in the format [{},{}] for transmission
 // Returns the number of entries peeked
@@ -226,8 +183,6 @@ int spiffsPeekBatch(int count, char *outBuffer, size_t bufSize) {
         char *pos;
         if ((pos = strchr(line, '\n'))) *pos = '\0';
         if ((pos = strchr(line, '\r'))) *pos = '\0';
-
-        // if (strlen(line) == 0) continue; // skip empty lines
 
         // Trim whitespace
         char *start = line;
@@ -330,6 +285,182 @@ void spiffsClearAll(void)
     printf("All data cleared from SPIFFS\n");
 }
 
+// Extract timestamp from JSON string
+uint32_t extract_timestamp_from_json(const char *json_string) {
+    const char *ts_key = "\"TS\":\"";
+    const char *ts_start = strstr(json_string, ts_key);
+    
+    if (ts_start == NULL) {
+        return 0;
+    }
+    
+    ts_start += strlen(ts_key); // Move past the key
+    const char *ts_end = strchr(ts_start, '\"');
+    
+    if (ts_end == NULL) {
+        return 0;
+    }
+    
+    char ts_buffer[20] = {0};
+    size_t ts_length = ts_end - ts_start;
+    if (ts_length >= sizeof(ts_buffer)) {
+        ts_length = sizeof(ts_buffer) - 1;
+    }
+    
+    strncpy(ts_buffer, ts_start, ts_length);
+    ts_buffer[ts_length] = '\0';
+    
+    return (uint32_t)atol(ts_buffer);
+}
+
+// Replace timestamp in JSON string
+void replace_timestamp_in_json(char *json_string, uint32_t new_timestamp) {
+    const char *ts_key = "\"TS\":\"";
+    char *ts_start = strstr(json_string, ts_key);
+    
+    if (ts_start == NULL) {
+        return;
+    }
+    
+    ts_start += strlen(ts_key); // Move past the key
+    char *ts_end = strchr(ts_start, '\"');
+    
+    if (ts_end == NULL) {
+        return;
+    }
+    
+    // Create new timestamp string
+    char new_ts[20];
+    snprintf(new_ts, sizeof(new_ts), "%" PRIu32, new_timestamp);
+    
+    // Calculate lengths
+    size_t old_ts_length = ts_end - ts_start;
+    size_t new_ts_length = strlen(new_ts);
+    
+    // If new timestamp is longer, we need to handle memory carefully
+    if (new_ts_length > old_ts_length) {
+        // For safety, we'll create a new buffer
+        char new_json[512];
+        size_t prefix_length = ts_start - json_string;
+        
+        // Copy prefix
+        strncpy(new_json, json_string, prefix_length);
+        new_json[prefix_length] = '\0';
+        
+        // Add new timestamp
+        strcat(new_json, new_ts);
+        
+        // Add suffix
+        strcat(new_json, ts_end);
+        
+        // Copy back to original buffer (truncate if necessary)
+        strncpy(json_string, new_json, 210);
+        json_string[209] = '\0';
+    } else {
+        // Direct replacement
+        strncpy(ts_start, new_ts, old_ts_length);
+        // Pad with spaces if new timestamp is shorter
+        if (new_ts_length < old_ts_length) {
+            memset(ts_start + new_ts_length, ' ', old_ts_length - new_ts_length);
+        }
+    }
+}
+
+// Process and adjust all timestamps in SPIFFS using the received BLE timestamp
+void spiffs_adjust_timestamps(uint32_t ble_timestamp, uint32_t current_seconds_counter) {
+    if (timestamp_adjustment_in_progress) {
+        printf("Timestamp adjustment already in progress\n");
+        return;
+    }
+    
+    timestamp_adjustment_in_progress = true;
+    printf("Starting timestamp adjustment with BLE timestamp: %" PRIu32 "\n", ble_timestamp);
+    
+    // Create temporary file for processing
+    FILE *src = fopen("/spiffs/hello.txt", "r");
+    if (!src) {
+        printf("Failed to open source file for reading\n");
+        timestamp_adjustment_in_progress = false;
+        return;
+    }
+    
+    FILE *tmp = fopen("/spiffs/tmp_adjust.txt", "w");
+    if (!tmp) {
+        printf("Failed to open temp file for writing\n");
+        fclose(src);
+        timestamp_adjustment_in_progress = false;
+        return;
+    }
+    
+    char line[512];
+    int processed_count = 0;
+    int adjusted_count = 0;
+    int skipped_count = 0;
+    
+    while (fgets(line, sizeof(line), src)) {
+        // Strip newline/carriage return
+        char *pos;
+        if ((pos = strchr(line, '\n'))) *pos = '\0';
+        if ((pos = strchr(line, '\r'))) *pos = '\0';
+        
+        // Skip empty lines
+        if (strlen(line) == 0) {
+            continue;
+        }
+        
+        // Extract current timestamp from JSON
+        uint32_t current_ts = extract_timestamp_from_json(line);
+        if (current_ts == 0) {
+            printf("Failed to extract timestamp from line: %s\n", line);
+            // Write original line without modification
+            fprintf(tmp, "%s\n", line);
+            continue;
+        }
+        
+        // Check if this timestamp is already an adjusted epoch timestamp
+        // Adjusted timestamps will be much larger than seconds_counter values
+        // (epoch timestamps are typically > 1.7 billion, seconds_counter is small)
+        if (current_ts > 1000000000) { // Already an epoch timestamp
+            printf("Skipping already adjusted timestamp: %" PRIu32 "\n", current_ts);
+            fprintf(tmp, "%s\n", line);
+            skipped_count++;
+            continue;
+        }
+        
+        printf("Original counter timestamp: %" PRIu32 "\n", current_ts);
+        
+        // Calculate adjusted timestamp for raw counter values only
+        // adjusted_ts = ble_timestamp - (current_seconds_counter - current_ts)
+        uint32_t adjusted_ts = ble_timestamp - (current_seconds_counter - current_ts);
+        
+        printf("Adjusted to epoch: %" PRIu32 " (BLE: %" PRIu32 " - Counter: %" PRIu32 " + Current: %" PRIu32 ")\n", 
+               adjusted_ts, ble_timestamp, current_seconds_counter, current_ts);
+        
+        // Replace timestamp in JSON
+        char modified_line[512];
+        strncpy(modified_line, line, sizeof(modified_line));
+        modified_line[sizeof(modified_line) - 1] = '\0';
+        
+        replace_timestamp_in_json(modified_line, adjusted_ts);
+        
+        // Write modified line to temp file
+        fprintf(tmp, "%s\n", modified_line);
+        processed_count++;
+        adjusted_count++;
+    }
+    
+    fclose(src);
+    fclose(tmp);
+    
+    // Replace original file with processed file
+    remove("/spiffs/hello.txt");
+    rename("/spiffs/tmp_adjust.txt", "/spiffs/hello.txt");
+    
+    printf("Timestamp adjustment completed. Adjusted %d packets, skipped %d already adjusted packets.\n", 
+           adjusted_count, skipped_count);
+    timestamp_adjustment_in_progress = false;
+}
+
 // Read the BMV080 (sensor 1) data buffer 
 void nvs_read_message_one(const char *nvs_message_one)
 {
@@ -383,4 +514,6 @@ void combine_sensor_data(void){
     // printf("Writing SPIFFS\n");
 
     spiffsWrite(sensor_buffer);
+
+    spiffsRead();
 }

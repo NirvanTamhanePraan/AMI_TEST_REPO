@@ -1,5 +1,6 @@
 // Include custom Header files
 #include "ESP32Time.h"
+#include "nvs_store_data.h"
 #include "ble_main.h"
 
 // Include ESP32 Library header files
@@ -20,10 +21,20 @@ static bool rtc_set_from_ble = false;
 // String to store current timestamp
 char current_timestamp_str[20] = "0"; // Enough for 64-bit timestamp
 
+// Variables for counting seconds from 0 until BLE timestamp is received
+uint32_t seconds_counter = 0;
+static TickType_t last_tick_count = 0;
+
 void update_timestamp_string() {
-    if (rtc != NULL) {
-        time_t epoch = ESP32Time_getEpoch(rtc);
-        snprintf(current_timestamp_str, sizeof(current_timestamp_str), "%lld", (long long)epoch);
+    if (rtc_set_from_ble) {
+        // Use actual epoch time from RTC
+        if (rtc != NULL) {
+            time_t epoch = ESP32Time_getEpoch(rtc);
+            snprintf(current_timestamp_str, sizeof(current_timestamp_str), "%lld", (long long)epoch);
+        }
+    } else {
+        // Use seconds counter (time since start)
+        snprintf(current_timestamp_str, sizeof(current_timestamp_str), "%" PRIu32, seconds_counter);
     }
 }
 
@@ -84,12 +95,14 @@ void process_timestamp() {
         // printf("RTC now set to: %lld\n", (long long)current_epoch);
         // printf("Human readable: %s", ctime(&current_epoch));
         
-        // Update the timestamp string
+        // Set the flag to indicate RTC is now set from BLE
+        rtc_set_from_ble = true;
+
+        spiffs_adjust_timestamps(timestamp, seconds_counter);
+        
+        // Update the timestamp string to use epoch time
         update_timestamp_string();
         // printf("Timestamp stored as string: %s\n", current_timestamp_str);
-        
-        // Set the flag to prevent future settings
-        rtc_set_from_ble = true;
         
         // Optional: Free the BLE data since we don't need it anymore
         free(rec_value4);
@@ -107,30 +120,46 @@ void rtc_task(void *pvParameters) {
         return;
     }
     
-    // Set initial time
+    // Set initial time (this won't be used until BLE timestamp is received)
     ESP32Time_setTimeEpoch(rtc, 1755872195, 0);
     // printf("Initial RTC set to epoch: %lu\n", ESP32Time_getEpoch(rtc));
     
-    // Initialize timestamp string
+    // Initialize timestamp string with 0
     update_timestamp_string();
+    
+    // Initialize tick count for seconds counter
+    last_tick_count = xTaskGetTickCount();
     
     // Pre-allocate buffers to avoid repeated malloc/free
     char time_buffer[64];
     char date_buffer[64];
     
     for(;;) {
-        // Get time strings using a safer approach
-        struct tm timeinfo = ESP32Time_getTimeStruct(rtc);
+        // Update seconds counter if BLE timestamp not received yet
+        if (!rtc_set_from_ble) {
+            TickType_t current_tick = xTaskGetTickCount();
+            TickType_t elapsed_ticks = current_tick - last_tick_count;
+            
+            // Count seconds (1000ms = 1 second)
+            if (elapsed_ticks >= pdMS_TO_TICKS(1000)) {
+                seconds_counter++;
+                last_tick_count = current_tick;
+                update_timestamp_string();
+            }
+        } else {
+            // Get time strings using a safer approach
+            struct tm timeinfo = ESP32Time_getTimeStruct(rtc);
+            
+            // Format time and date directly into buffers
+            strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S", &timeinfo);
+            strftime(date_buffer, sizeof(date_buffer), "%a, %b %d %Y", &timeinfo);
+            
+            // printf("Time: %s\n", time_buffer);
+            // printf("Date: %s\n", date_buffer);
+            // printf("Epoch: %lu\n", ESP32Time_getEpoch(rtc));
+        }
         
-        // Format time and date directly into buffers
-        strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S", &timeinfo);
-        strftime(date_buffer, sizeof(date_buffer), "%a, %b %d %Y", &timeinfo);
-        
-        // printf("Time: %s\n", time_buffer);
-        // printf("Date: %s\n", date_buffer);
-        // printf("Epoch: %lu\n", ESP32Time_getEpoch(rtc));
-        
-        // Update timestamp string every iteration
+        // Update timestamp string (handles both cases)
         update_timestamp_string();
         // printf("Current timestamp string: %s\n", current_timestamp_str);
 
@@ -166,4 +195,3 @@ void rtcInit(void) {
     // Increased stack size to 4096 bytes
     xTaskCreate(rtc_task, "rtc_task", 4096, NULL, 5, NULL);
 }
-
